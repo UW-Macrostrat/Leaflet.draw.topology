@@ -63,7 +63,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     this._updateIndexes();
   };
 
-  L.Edit.Poly.prototype._createMarker = function (latlng, index) {
+  L.Edit.Poly.prototype._createMarker = function(latlng, index) {
     var marker = new L.Marker(latlng, {
       draggable: true,
       icon: this.options.icon
@@ -89,7 +89,13 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     return marker;
   };
 
-  L.Edit.Poly.prototype._onMarkerDrag = function (e) {
+  L.Edit.Poly.prototype._onMarkerClick = function(e) {
+    /* For now, just disable the ability to remove markers,
+       but eventually you should be able to remove markers,
+       including those that have shared vertices */
+  };
+
+  L.Edit.Poly.prototype._onMarkerDrag = function(e) {
     var marker = e.target;
     var origLatLng = marker._origLatLng;
     var toRedraw = [];
@@ -130,7 +136,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
   };
 
   // Update Leaflet.snap to fire a snap/unsnap on the map
-  L.Handler.MarkerSnap.prototype._updateSnap = function (marker, layer, latlng) {
+  L.Handler.MarkerSnap.prototype._updateSnap = function(marker, layer, latlng) {
     // Layer is guide layer being snapped to
     if (layer && latlng) {
       marker._latlng = L.latLng(latlng);
@@ -271,11 +277,14 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                     return this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.indexOf(n) != -1
                   }.bind(this));
 
+                  // If there are multiple intersection layers, remove duplicates
                   if (touchingPolys.length > 1) {
                     touchingPolys = touchingPolys.filter(function(n) {
                       return hash[0]._twinLayers.indexOf(n) === -1;
                     });
                   }
+
+                  // If there are no touching polys, there is only one polygon at this new point
                   if (touchingPolys.length === 0) {
                     return;
                   }
@@ -293,7 +302,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                 } else {
                   console.log("Something went wrong....");
                 }
-                //var otherPoly = hash[0]._twinLayer;
+
                 var otherHash = this.sortPolygon(otherPoly, vertex);
 
                 var otherMarkerToInsert = {
