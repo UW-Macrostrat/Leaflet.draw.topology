@@ -21,8 +21,7 @@
   "dependencies": {
     "leaflet": "*",
     "leaflet-geometryutil": "*",
-    "leaflet-draw": "*",
-    "leaflet-snap": "*"
+    "leaflet-draw": "*"
   },
   "devDependencies": {
     "grunt": "0.4.x",
