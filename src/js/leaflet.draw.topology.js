@@ -234,9 +234,9 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
              vertex, we can assume it's between the closest and the previous vertex;
           */
           if (hash[0]._index === this._map._layers[poly].editing._poly._latlngs.length - 1) {
-            var beforeOrAfter = (this.isBetween(this._map._layers[poly].editing._poly._latlngs[hash[0]._index], this._map._layers[poly].editing._poly._latlngs[0], vertex._latlng)) ? 1 : 0;
+            var beforeOrAfter = (this._isBetween(this._map._layers[poly].editing._poly._latlngs[hash[0]._index], this._map._layers[poly].editing._poly._latlngs[0], vertex._latlng)) ? 1 : 0;
           } else {
-            var beforeOrAfter = (this.isBetween(this._map._layers[poly].editing._poly._latlngs[hash[0]._index], this._map._layers[poly].editing._poly._latlngs[hash[0]._index + 1], vertex._latlng)) ? 1 : 0;
+            var beforeOrAfter = (this._isBetween(this._map._layers[poly].editing._poly._latlngs[hash[0]._index], this._map._layers[poly].editing._poly._latlngs[hash[0]._index + 1], vertex._latlng)) ? 1 : 0;
           }
 
           var insertIndex = hash[0]._index + beforeOrAfter,
@@ -247,8 +247,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
             var otherVertex = (beforeOrAfter === 1) ? 1 : -1;
             if (hash[0]._index === 0 && otherVertex === -1) {
               otherVertex = this._map._layers[poly].editing._poly._latlngs.length - 1;
-            } else if (hash[0]._index + otherVertex === this._map._layers[poly].editing._poly._latlngs.length - 1) {
-              otherVertex = 0;
             } else if (hash[0]._index === this._map._layers[poly].editing._poly._latlngs.length - 1 && beforeOrAfter === 1) {
               otherVertex = 0
             } else if (hash[0]._index === this._map._layers[poly].editing._poly._latlngs.length - 1) {
@@ -257,13 +255,14 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
               otherVertex = hash[0]._index + otherVertex;
             }
             var otherVertexHasTwin = map._layers[poly].editing._poly._latlngs[otherVertex]._hasTwin;
-            // If the vertex on the other side of the vertex to be inserted also has a twin, add an identical marker to the shared polygon
+            /* If the vertex on the other side of the vertex to be inserted also has a twin, 
+               add an identical marker to the shared polygon */
             if (otherVertexHasTwin) {
               (function() {
                 var otherPoly;
-                /*
-                  It is possible that both the vertices on either side of the vertex to be inserted have more than 1 shared layer
-                */
+                /* It is possible that both the vertices on either side of the vertex to be 
+                  inserted have more than 1 shared layer */
+                
                 // If both vertices have more than one shared layer...
                 if (hash[0]._twinLayers.length > 1 && this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.length > 1) {
 
@@ -271,6 +270,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                   var touchingPolys = hash[0]._twinLayers.filter(function(n) {
                     return this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.indexOf(n) != -1
                   }.bind(this));
+
                   if (touchingPolys.length > 1) {
                     touchingPolys = touchingPolys.filter(function(n) {
                       return hash[0]._twinLayers.indexOf(n) === -1;
@@ -279,11 +279,9 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                   if (touchingPolys.length === 0) {
                     return;
                   }
-                  //var index = touchingPolys.indexOf(poly);
-                  // ...subtract the layer we snapped to...
-                  //touchingPolys.splice(index, 1);
-                  // ...and use the remaining one
+                  
                   otherPoly = touchingPolys[0];
+
                 // If the closest vertex has > 1 shared layer, but the other vertex does not, use the other vertex's shared layer
                 } else if (hash[0]._twinLayers.length > 1 && this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.length === 1) {
                   otherPoly = this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers[0];
@@ -310,9 +308,9 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                 };
 
                 if (otherHash[0]._index === this._map._layers[otherPoly].editing._poly._latlngs.length - 1) {
-                  var otherBeforeOrAfter = (this.isBetween(this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index], this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index - 1], vertex._latlng)) ? 0 : 1;
+                  var otherBeforeOrAfter = (this._isBetween(this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index], this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index - 1], vertex._latlng)) ? 0 : 1;
                 } else {
-                  var otherBeforeOrAfter = (this.isBetween(this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index], this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index + 1], vertex._latlng)) ? 1 : 0;
+                  var otherBeforeOrAfter = (this._isBetween(this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index], this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index + 1], vertex._latlng)) ? 1 : 0;
                 }
 
                 var otherInsertIndex = otherHash[0]._index + otherBeforeOrAfter;
@@ -415,7 +413,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       return c;
     },
 
-    isBetween: function(a, b, c) {
+    _isBetween: function(a, b, c) {
       var epsilon = this._distance(a, b);
 
       var crossProduct = (c.lat - a.lat) * (b.lng - a.lng) - (c.lng - a.lng) * (b.lat - a.lat);
@@ -513,7 +511,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     },
 
     addMissingVertex: function(layerA, layerB, a, b, c) {
-      if (this.isBetween(a, this._map._layers[layerA]._latlngs[b + 1], c)) {
+      if (this._isBetween(a, this._map._layers[layerA]._latlngs[b + 1], c)) {
         var A = [a.lat, a.lng],
             B = [this._map._layers[layerA]._latlngs[b + 1].lat, this._map._layers[layerA]._latlngs[b + 1].lng],
             C = [c.lat, c.lng];
