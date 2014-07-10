@@ -1,0 +1,129 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -113,
+              37
+            ],
+            [
+              -113,
+              40
+            ],
+            [
+              -109,
+              40
+            ],
+            [
+              -109,
+              37
+            ],
+            [
+              -113,
+              37
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -109,
+              37
+            ],
+            [
+              -109,
+              39
+            ],
+            [
+              -104,
+              39
+            ],
+            [
+              -104,
+              37
+            ],
+            [
+              -109,
+              37
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -109,
+              34
+            ],
+            [
+              -109,
+              37
+            ],
+            [
+              -102,
+              37
+            ],
+            [
+              -102,
+              34
+            ],
+            [
+              -109,
+              34
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -104,
+              37
+            ],
+            [
+              -104,
+              40
+            ],
+            [
+              -100,
+              40
+            ],
+            [
+              -100,
+              37
+            ],
+            [
+              -104,
+              37
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

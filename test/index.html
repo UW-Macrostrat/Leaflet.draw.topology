@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <meta charset="utf-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="../node_modules/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="../node_modules/Leaflet-draw/dist/leaflet.draw.css" />
+  <link rel="stylesheet" href="../src/css/leaflet.draw.topology.css"/>
+  <style>
+    #map {
+      height: 600px;
+    }
+  </style>
+
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="../node_modules/leaflet/dist/leaflet.js"></script>
+
+  <script src="../node_modules/Leaflet-draw/dist/leaflet.draw-src.js"></script>
+  <script src="../node_modules/leaflet-geometryutil/dist/leaflet.geometryutil.js"></script>
+  <script src="../node_modules/Leaflet.Snap/leaflet.snap.js"></script>
+
+  <script src="../src/js/leaflet.draw.topology.js"></script>
+  <script src="lib/zepto.min.js"></script>
+
+  <script type="text/javascript">
+
+    var map = new L.map("map").setView([38.5, -105], 6);
+
+    L.tileLayer('http://{s}.acetate.geoiq.com/tiles/acetate/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: ' ©2012 Esri & Stamen, Data from OSM and Natural Earth'
+    }).addTo(map);
+    
+    
+    var drawnItems = new L.FeatureGroup();
+
+    $.getJSON("data.geojson", function(data) {
+      data.features.forEach(function(d) {
+        d.geometry.coordinates[0].forEach(function(j) {
+          j = j.reverse();
+        });
+
+        var item = new L.Polygon(d.geometry.coordinates[0]);
+        item.setStyle({
+          fillColor: '#777',
+          color: '#444',
+          weight: 3,
+          opacity: 0.8
+        });
+
+        drawnItems.addLayer(item);
+
+      });
+      // Init leaflet.draw.topology here with
+      L.Edit.Topology.init(map, drawnItems, {
+        "icon": new L.Icon({
+          iconUrl: '../src/icons/marker_blk.svg',
+          iconSize: [12, 12]
+        })
+      });
+    });
+    
+    
+  </script>
+</body>
+</html>

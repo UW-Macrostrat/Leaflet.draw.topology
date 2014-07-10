@@ -1,0 +1,7 @@
+.hidden {
+  display: none;
+}
+
+.propagateDrag {
+  pointer-events:none;
+}

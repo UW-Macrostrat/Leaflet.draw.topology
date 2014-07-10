@@ -1,0 +1,35 @@
+{
+  "name": "leaflet-draw-topology",
+  "version": "0.0.1",
+  "description": "Topological editing for Leaflet",
+  "main": "dist/leaflet.draw.topology.js",
+  "scripts": {
+    "build": "grunt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jczaplewski/Leaflet.draw.topology.git"
+  },
+  "keywords": [
+    "topology",
+    "editing",
+    "vector",
+    "maps"
+  ],
+  "author": "John J Czaplewski",
+  "license": "CC0",
+  "dependencies": {
+    "leaflet": "*",
+    "leaflet-geometryutil": "*",
+    "leaflet-draw": "*",
+    "leaflet-snap": "*"
+  },
+  "devDependencies": {
+    "grunt": "0.4.x",
+    "grunt-contrib-uglify": "0.2.x",
+    "grunt-contrib-watch": "0.5.x",
+    "grunt-contrib-cssmin": "0.7.x",
+    "grunt-cssc": "0.2.x",
+    "matchdep": "0.3.x"
+  }
+}
