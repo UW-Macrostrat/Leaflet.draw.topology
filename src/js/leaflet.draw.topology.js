@@ -226,122 +226,132 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         // Make sure marker is snapped to a polygon
         if (this._map._snapLayer) {
           var poly = this._map._snapLayer,
-              hash = this.sortPolygon(this._map._snapLayer, vertex);
+              toRedraw = [];
 
           var markerToInsert = {
             "lat": vertex._latlng.lat,
-            "lng": vertex._latlng.lng,
-            "layer": poly
+            "lng": vertex._latlng.lng
           };
-          markerToInsert.layer = poly;
-          /* Figure out if it belongs before or after the nearest vertex.
-             Here we check if the added vertex is between the closest vertex
-             and the next vertex. If it is not between the closest and next 
-             vertex, we can assume it's between the closest and the previous vertex;
-          */
-          if (hash[0]._index === this._map._layers[poly].editing._poly._latlngs.length - 1) {
-            var beforeOrAfter = (this._isBetween(this._map._layers[poly].editing._poly._latlngs[hash[0]._index], this._map._layers[poly].editing._poly._latlngs[0], vertex._latlng)) ? 1 : 0;
-          } else {
-            var beforeOrAfter = (this._isBetween(this._map._layers[poly].editing._poly._latlngs[hash[0]._index], this._map._layers[poly].editing._poly._latlngs[hash[0]._index + 1], vertex._latlng)) ? 1 : 0;
+
+          var polyCoordinates = this._map._layers[poly].editing._poly._latlngs;
+          // Check if the added vertex is between each pair of latlngs in the polygon
+          for (var i = 0; i < polyCoordinates.length; i++) {
+            // Make sure the current index + 1 isn't greater than the length of the latlng array
+            if (i + 1 <= polyCoordinates.length - 1) {
+              if (this._isBetween(polyCoordinates[i], polyCoordinates[i + 1], vertex._latlng)) {
+                var vertex1 = i,
+                    vertex2 = i + 1;
+                break;
+              }
+            // Otherwise, check between last vertex and first vertex
+            } else {
+              if (this._isBetween(polyCoordinates[i], polyCoordinates[0], vertex._latlng)) {
+                var vertex1 = i,
+                    vertex2 = 0;
+                break;
+              }
+            }
           }
 
-          var insertIndex = hash[0]._index + beforeOrAfter,
-              toRedraw = [];
+          /* If both vertices either side of the new vertex have a twin or twins, 
+             we need to insert a vertex on that/those layers(s) */
+          if (polyCoordinates[vertex1]._hasTwin && polyCoordinates[vertex2]._hasTwin) {
+            (function() {
+              // Check if each has more than one twin layer
+              if (polyCoordinates[vertex1]._twinLayers.length > 1 && polyCoordinates[vertex2]._twinLayers.length > 1) {
+                // ...find the intersection of their shared layers...
+                var intersection = polyCoordinates[vertex1]._twinLayers.filter(function(n) {
+                  return polyCoordinates[vertex2]._twinLayers.indexOf(n) != -1
+                }.bind(this));
 
-          // Check if the closest marker has a twin
-          if (hash[0]._hasTwin) {
-            var otherVertex = (beforeOrAfter === 1) ? 1 : -1;
-            if (hash[0]._index === 0 && otherVertex === -1) {
-              otherVertex = this._map._layers[poly].editing._poly._latlngs.length - 1;
-            } else if (hash[0]._index === this._map._layers[poly].editing._poly._latlngs.length - 1 && beforeOrAfter === 1) {
-              otherVertex = 0
-            } else if (hash[0]._index === this._map._layers[poly].editing._poly._latlngs.length - 1) {
-              otherVertex = hash[0]._index - 1;
-            } else {
-              otherVertex = hash[0]._index + otherVertex;
-            }
-            var otherVertexHasTwin = map._layers[poly].editing._poly._latlngs[otherVertex]._hasTwin;
-            /* If the vertex on the other side of the vertex to be inserted also has a twin, 
-               add an identical marker to the shared polygon */
-            if (otherVertexHasTwin) {
-              (function() {
-                var otherPoly;
-                /* It is possible that both the vertices on either side of the vertex to be 
-                  inserted have more than 1 shared layer */
-                
-                // If both vertices have more than one shared layer...
-                if (hash[0]._twinLayers.length > 1 && this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.length > 1) {
+                // If there are multiple intersection layers, remove duplicates
+                if (intersection.length > 1) {
+                  var touchingPolys = intersection.filter(function(n) {
+                    return polyCoordinates[vertex1]._twinLayers.indexOf(n) === -1;
+                  });
+                } else {
+                  var touchingPolys = intersection;
+                }
 
-                  // ...find the intersection of their shared layers...
-                  var touchingPolys = hash[0]._twinLayers.filter(function(n) {
-                    return this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.indexOf(n) != -1
+                // If there are no touching polys...
+                if (touchingPolys.length === 0) {
+                  // find union
+                  var union = polyCoordinates[vertex1]._twinLayers.filter(function(n) {
+                    return polyCoordinates[vertex2]._twinLayers.indexOf(n) > -1
                   }.bind(this));
-
-                  // If there are multiple intersection layers, remove duplicates
-                  if (touchingPolys.length > 1) {
-                    touchingPolys = touchingPolys.filter(function(n) {
-                      return hash[0]._twinLayers.indexOf(n) === -1;
-                    });
-                  }
-
-                  // If there are no touching polys, there is only one polygon at this new point
-                  if (touchingPolys.length === 0) {
+                  if (union.length === intersection.length) {
+                    union.splice(union.indexOf(poly.toString()), 1);
+                    var otherPoly = union[0];
+                  } else {
+                    // There is only one polygon at this point
                     return;
                   }
                   
-                  otherPoly = touchingPolys[0];
-
-                // If the closest vertex has > 1 shared layer, but the other vertex does not, use the other vertex's shared layer
-                } else if (hash[0]._twinLayers.length > 1 && this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.length === 1) {
-                  otherPoly = this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers[0];
-                // Under more conditions, this will be true. Simply use the shared layer of the closest marker
-                } else if (hash[0]._twinLayers.length === 1 && this._map._layers[poly].editing._poly._latlngs[otherVertex]._twinLayers.length === 1) {
-                  return;
-                } else if (hash[0]._twinLayers.length === 1) {
-                  otherPoly = hash[0]._twinLayers[0];
                 } else {
-                  console.log("Something went wrong....");
+                  var otherPoly = touchingPolys[0];
                 }
 
-                var otherHash = this.sortPolygon(otherPoly, vertex);
+              } else if (polyCoordinates[vertex1]._twinLayers.length > 1 && polyCoordinates[vertex2]._twinLayers.length === 1) {
+                var otherPoly = polyCoordinates[vertex2]._twinLayers[0];
+              } else if (polyCoordinates[vertex1]._twinLayers.length === 1 && polyCoordinates[vertex2]._twinLayers.length > 1) {
+                var otherPoly = polyCoordinates[vertex1]._twinLayers[0];
+              } else if (polyCoordinates[vertex1]._twinLayers.length === 1 && polyCoordinates[vertex2]._twinLayers.length === 1) {
+                return;
+              } 
 
-                var otherMarkerToInsert = {
-                  "lat": vertex._latlng.lat,
-                  "lng": vertex._latlng.lng,
-                  "layer": otherPoly,
-                  "_hasTwin": true,
-                  "_twin": {
-                    "layer": poly
-                  },
-                  "_twinLayers": otherHash[0]._twinLayers
-                };
+              var otherPolyCoordinates = this._map._layers[otherPoly].editing._poly._latlngs;
 
-                if (otherHash[0]._index === this._map._layers[otherPoly].editing._poly._latlngs.length - 1) {
-                  var otherBeforeOrAfter = (this._isBetween(this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index], this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index - 1], vertex._latlng)) ? 0 : 1;
+              // Check if the added vertex is between each pair of latlngs in the other polygon
+              for (var i = 0; i < otherPolyCoordinates.length; i++) {
+                // Make sure the current index + 1 isn't greater than the length of the latlng array
+                if (i + 1 <= otherPolyCoordinates.length - 1) {
+                  if (this._isBetween(otherPolyCoordinates[i], otherPolyCoordinates[i + 1], vertex._latlng)) {
+                    var otherVertex1 = i,
+                        otherVertex2 = i + 1;
+                    break;
+                  }
+                // Otherwise, check between last vertex and first vertex
                 } else {
-                  var otherBeforeOrAfter = (this._isBetween(this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index], this._map._layers[otherPoly].editing._poly._latlngs[otherHash[0]._index + 1], vertex._latlng)) ? 1 : 0;
+                  if (this._isBetween(otherPolyCoordinates[i], otherPolyCoordinates[0], vertex._latlng)) {
+                    var otherVertex1 = i,
+                        otherVertex2 = 0;
+                    break;
+                  }
                 }
+              }
 
-                var otherInsertIndex = otherHash[0]._index + otherBeforeOrAfter;
+              var otherMarkerToInsert = {
+                "lat": vertex._latlng.lat,
+                "lng": vertex._latlng.lng,
+                "_hasTwin": true,
+                "_twin": {
+                  "layer": poly
+                },
+                "_twinLayers": [poly.toString(), otherPoly]
+              };
 
-                markerToInsert._hasTwin = true;
-                markerToInsert._twinLayers = hash[0]._twinLayers;
+              markerToInsert._hasTwin = true;
+              markerToInsert._twinLayers = [poly.toString(), otherPoly];
 
-                this._map._layers[otherPoly].editing._poly._latlngs.splice(otherInsertIndex, 0, otherMarkerToInsert);
-                toRedraw.push(otherPoly);
+              otherPolyCoordinates.splice(otherVertex2, 0, otherMarkerToInsert);
+              toRedraw.push(otherPoly);
 
-              }).bind(this)();
-            }
+            }).bind(this)();
+          }
 
-          } 
-          this._map._layers[poly].editing._poly._latlngs.splice(insertIndex, 0, markerToInsert);
+          // Splice the new latlng into the polygon the new marker snapped to
+          polyCoordinates.splice(vertex2, 0, markerToInsert);
+
+          // Add the snapped polygon to the redraw queue
           toRedraw.push(poly);
 
           // Find all overlapping vertexes
           this.reset();
+
+          // Redraw all affected polygons
           this.redrawPolys(toRedraw);
 
-        }
+        } // end if (this._map.snapLayer)
 
       }.bind(this));
 
@@ -422,6 +432,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       return c;
     },
 
+    // Is c beween a and b?
     _isBetween: function(a, b, c) {
       var epsilon = this._distance(a, b);
 
@@ -441,31 +452,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       }
 
       return true;
-    },
-
-    sortPolygon: function(poly, vertex) {
-      var hash = [];
-      // Find the distance between the added point and all existing vertices
-      this._map._layers[poly].editing._poly._latlngs.forEach(function(d) {
-        var item = {
-          "_index": d._index,
-          "_hasTwin": d._hasTwin,
-          "dist": this._distance(d, vertex._latlng)
-        };
-        // If the vertex has a twin, record which layer it belongs to
-        if (d._hasTwin) {
-          item["_twinLayers"] = d._twinLayers;
-        }
-
-        hash.push(item);
-      }.bind(this));
-
-      // Sort by distance
-      hash = hash.sort(function(a, b) {
-        return a.dist - b.dist;
-      });
-
-      return hash;
     },
 
     redrawPolys: function(polys) {
@@ -519,6 +505,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       }.bind(this));
     },
 
+    // (layerA, layerB, layerA-latlng, layerA-latlng-index, layerB-latlng)
     addMissingVertex: function(layerA, layerB, a, b, c) {
       if (this._isBetween(a, this._map._layers[layerA]._latlngs[b + 1], c)) {
         var A = [a.lat, a.lng],
@@ -549,6 +536,8 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     missingVertices: function() {
       Object.keys(this._map._layers).forEach(function(d) {
         Object.keys(this._map._layers).forEach(function(x) {
+          /* Make sure the layer is indeed a polygon (_latlngs) and that 
+             we are not comparing a given layer to itself (d != x) */
           if (this._map._layers[d]._latlngs && this._map._layers[x]._latlngs && d != x) {
 
             this._map._layers[d]._latlngs.forEach(function(a, b) {
