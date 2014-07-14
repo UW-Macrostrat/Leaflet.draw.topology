@@ -180,7 +180,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       }.bind(this));
 
       this.marker.snapediting = new L.Handler.MarkerSnap(this._map, this.marker);
-      this.marker.snapediting.addGuideLayer(drawnItems);
+      this.marker.snapediting.addGuideLayer(layer);
       this.marker.snapediting.enable();
 
       this._map.removeLayer(this.marker);
