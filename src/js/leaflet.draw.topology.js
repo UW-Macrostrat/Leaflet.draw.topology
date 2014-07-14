@@ -43,14 +43,27 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     var latlngs = this._poly._latlngs,
       i, j, len, marker;
 
-    for (i = 0, len = latlngs.length; i < len; i++) {
-      marker = this._createMarker(latlngs[i], i);
-      marker.on('click', this._onMarkerClick, this);
-      this._markers.push(marker);
+    for (var i = 0, len = latlngs.length; i < len; i++) {
+      if (this._primary) {
+        console.log("primary = ", this._poly._leaflet_id);
+        marker = this._createMarker(latlngs[i], i);
+        marker.on('click', this._onMarkerClick, this);
+        this._markers.push(marker);
+      } else {
+        if (latlngs[i]._twinLayers) {
+          for (var j = 0; j < latlngs[i]._twinLayers.length; j++) {
+            if (map._layers[latlngs[i]._twinLayers[j]].editing._primary) {
+              marker = this._createMarker(latlngs[i], i);
+              marker.on('click', this._onMarkerClick, this);
+              this._markers.push(marker);
+            }
+          }
+        }
+      }
     }
     var markerLeft, markerRight;
 
-    for (i = 0, j = len - 1; i < len; j = i++) {
+    for (var i = 0, j = len - 1; i < len; j = i++) {
       if (i === 0 && !(L.Polygon && (this._poly instanceof L.Polygon))) {
         continue;
       }
@@ -74,7 +87,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
 
     if (latlng._hasTwin) {
       marker._hasTwin = true;
-      marker._twinLayers = latlng._twinLayers;
+      marker._twinLayers = latlng._twinLayers
     }
 
     if (latlng._isMiddle) {
@@ -187,6 +200,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       this.marker.snapediting.disable();
 
       this._map.on('snap', function(e) {
+        console.log("snapped to ", e.layer_id);
         L.DomUtil.removeClass(e.marker._icon, 'hidden');
         this._map._snapLayer = e.layer_id;
       }.bind(this));
@@ -213,6 +227,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
               this._findAdjacencies("disable", d.target);
             }
           } else {
+      // TODO: check if other layers are being edited and disable them first!
             this._map.addLayer(this.marker);
             this.marker.snapediting.enable();
             this._findAdjacencies("enable", d.target);
@@ -254,9 +269,9 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
 
           /* If both vertices either side of the new vertex have a twin or twins, 
-             we need to insert a vertex on that/those layers(s) */
+             we need to insert a vertex on that layers */
           if (polyCoordinates[vertex1]._hasTwin && polyCoordinates[vertex2]._hasTwin) {
-            (function() {
+            var otherMarker = (function() {
               // Check if each has more than one twin layer
               if (polyCoordinates[vertex1]._twinLayers.length > 1 && polyCoordinates[vertex2]._twinLayers.length > 1) {
                 // ...find the intersection of their shared layers...
@@ -330,13 +345,30 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                 "_twinLayers": [poly.toString(), otherPoly]
               };
 
-              markerToInsert._hasTwin = true;
-              markerToInsert._twinLayers = [poly.toString(), otherPoly];
-
-              otherPolyCoordinates.splice(otherVertex2, 0, otherMarkerToInsert);
-              toRedraw.push(otherPoly);
+              return {
+                "otherPoly": otherPoly, 
+                "otherPolyCoordinates": otherPolyCoordinates, 
+                "otherMarkerToInsert": otherMarkerToInsert, 
+                "otherVertex2": otherVertex2
+              };
 
             }).bind(this)();
+          }
+
+          if (otherMarker) {
+            if (!map._layers[otherMarker.otherPoly].editing._primary && !map._layers[poly].editing._primary) {
+              return;
+            }
+            markerToInsert._hasTwin = true;
+            markerToInsert._twinLayers = [poly.toString(), otherMarker.otherPoly];
+
+            otherMarker.otherPolyCoordinates.splice(otherMarker.otherVertex2, 0, otherMarker.otherMarkerToInsert);
+            toRedraw.push(otherMarker.otherPoly);
+
+          } 
+
+          if (!map._layers[poly].editing._primary) {
+            return;
           }
 
           // Splice the new latlng into the polygon the new marker snapped to
@@ -368,32 +400,41 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     _findAdjacencies: function(type, target) {
       var layers = [];
       target.adjacencies.forEach(function(e) {
-        if (layers.indexOf(e.toString()) < 0) {
+        if (e !== target._leaflet_id && layers.indexOf(e.toString()) < 0) {
           layers.push(e.toString());
         }
         // Recursively disable layers
-        this._map._layers[e].adjacencies.forEach(function(j) {
+        /*this._map._layers[e].adjacencies.forEach(function(j) {
           if (layers.indexOf(j.toString()) < 0) {
             layers.push(j.toString());
           }
-        });
+        });*/
       }.bind(this));
-      if (layers.indexOf(target._leaflet_id.toString()) < 0) {
-        layers.push(target._leaflet_id.toString());
-      }
+     // if (layers.indexOf(target._leaflet_id.toString()) < 0) {
+      //  layers.push(target._leaflet_id.toString());
+     // }
 
       // Enable or disable
       if (type === "enable") {
-        this.enableEditing(layers);
+        this.enableEditing(target._leaflet_id, layers);
       } else {
-        this.disableEditing(layers);
+        this.disableEditing(target._leaflet_id, layers);
       }
     },
 
-    enableEditing: function(layers) {
+    enableEditing: function(target, layers) {
+      this._map._layers[target].editing._enabled = true;
+      this._map._layers[target].editing._primary = true;
+      this._map._layers[target].editing.addHooks();
+      this._map._layers[target].setStyle({
+        fillColor: '#000',
+        color: '#666',
+        opacity: 0.5
+      });
       layers.forEach(function(d) {
-        this._map._layers[d].editing.addHooks();
         this._map._layers[d].editing._enabled = true;
+        this._map._layers[d].editing._neighbor = true;
+        this._map._layers[d].editing.addHooks();
         this._map._layers[d].setStyle({
           fillColor: '#fff',
           color: '#666',
@@ -402,10 +443,19 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       }.bind(this));
     },
 
-    disableEditing: function(layers) {
+    disableEditing: function(target, layers) {
+      this._map._layers[target].editing._enabled = false;
+      this._map._layers[target].editing._primary = false;
+      this._map._layers[target].editing.removeHooks();
+      this._map._layers[target].setStyle({
+        fillColor: '#777',
+        color: '#444',
+        opacity: 0.8
+      });
       layers.forEach(function(d) {
-        this._map._layers[d].editing.removeHooks();
         this._map._layers[d].editing._enabled = false;
+        this._map._layers[d].editing._neighbor = false;
+        this._map._layers[d].editing.removeHooks();
         this._map._layers[d].setStyle({
           fillColor: '#777',
           color: '#444',
