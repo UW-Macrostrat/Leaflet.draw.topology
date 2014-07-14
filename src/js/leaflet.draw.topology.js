@@ -179,6 +179,8 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         "editing": false
       };
 
+      this._layers = layer;
+
       var icon = (options && options.icon) ? options.icon : 
           new L.DivIcon({
             iconSize: new L.Point(10, 10),
@@ -385,7 +387,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
             toRedraw.push(poly);
 
             // Find all overlapping vertexes
-            this.reset();
+            this.match(toRedraw);
 
             // Redraw all affected polygons
             this.redrawPolys(toRedraw);
@@ -399,7 +401,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
             toRedraw.push(poly);
 
             // Find all overlapping vertexes
-            this.reset();
+            this.match(toRedraw);
 
             // Redraw all affected polygons
             this.redrawPolys(toRedraw);
@@ -416,7 +418,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
         }.bind(this));
         this.missingVertices();
-      }.bind(this), 500);
+      }.bind(this), 200);
     },
 
     _findAdjacencies: function(type, target) {
@@ -490,12 +492,13 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         this._map._layers[d].editing._enabled = false;
         this._map._layers[d].editing._neighbor = false;
         this._map._layers[d].editing.removeHooks();
-        this._map._layers[d].setStyle({
-          fillColor: '#000',
-          color: '#444',
-          opacity: 0.8
-        });
       }.bind(this));
+
+      this._layers.setStyle({
+        fillColor: '#000',
+        color: '#444',
+        opacity: 0.8
+      });
     },
 
     _distance: function(a, b) {
@@ -585,6 +588,45 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
               }.bind(this));
             }.bind(this));
           }
+        }.bind(this));
+      }.bind(this));
+    },
+
+    match: function(layers) {
+      layers.forEach(function(d, i) {
+        layers.forEach(function(x, y) {
+          this._map._layers[d]._latlngs.forEach(function(a, b) {
+            a._layer = d;
+            a._index = b;
+            this._map._layers[x]._latlngs.forEach(function(c, e) {
+              if (a.lat === c.lat && a.lng === c.lng) {
+                if (d !== x) {
+                  a._hasTwin = true;
+                  if (!a._twinLayers) {
+                    a._twinLayers = [];
+                  }
+                  if (a._twinLayers.indexOf(x) < 0) {
+                    a._twinLayers.push(x);
+                  }
+
+                  c._hasTwin = true;
+                  if (!c._twinLayers) {
+                    c._twinLayers = [];
+                  }
+                  if (c._twinLayers.indexOf(d) < 0) {
+                    c._twinLayers.push(d);
+                  }
+
+                  if (this._map._layers[d].adjacencies.indexOf(x) < 0) {
+                    this._map._layers[d].adjacencies.push(x);
+                  }
+                  if (this._map._layers[x].adjacencies.indexOf(d) < 0) {
+                    this._map._layers[x].adjacencies.push(d);
+                  }
+                }
+              }
+            }.bind(this));
+          }.bind(this));
         }.bind(this));
       }.bind(this));
     },
