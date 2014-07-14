@@ -13,6 +13,12 @@
     #map {
       height: 600px;
     }
+    .custom-control {
+      background-color: #fff;
+      padding: 10px;
+      text-align: center;
+      border-radius: 4px;
+    }
   </style>
 
 </head>
@@ -37,35 +43,37 @@
       attribution: ' ©2012 Esri & Stamen, Data from OSM and Natural Earth'
     }).addTo(map);
     
-    
-    var drawnItems = new L.FeatureGroup();
-
     $.getJSON("data.geojson", function(data) {
-      data.features.forEach(function(d) {
-        d.geometry.coordinates[0].forEach(function(j) {
-          j = j.reverse();
-        });
-
-        var item = new L.Polygon(d.geometry.coordinates[0]);
-        item.setStyle({
+      var geojson = L.geoJson(data, {
+        style: {
           fillColor: '#777',
           color: '#444',
           weight: 3,
           opacity: 0.8
-        });
+        }
+      }).addTo(map);
 
-        drawnItems.addLayer(item);
-
-      });
       // Init leaflet.draw.topology here with
-      L.Edit.Topology.init(map, drawnItems, {
+      L.Edit.Topology.init(map, geojson, {
         "icon": new L.Icon({
           iconUrl: '../src/icons/marker_blk.svg',
           iconSize: [12, 12]
         })
       });
     });
-    
+
+    var instructions = L.Control.extend({
+      options: {
+        position: 'topright'
+      },
+      onAdd: function (map) {
+        var container = L.DomUtil.create("div", "custom-control");
+        container.innerHTML += "Click on a polygon to enable editing.<br>Clicking on a line segment will add a new vertex.";
+        return container;
+      }
+    });
+
+    map.addControl(new instructions());
     
   </script>
 </body>
