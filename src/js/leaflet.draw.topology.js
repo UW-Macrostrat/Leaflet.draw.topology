@@ -45,7 +45,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
 
     for (var i = 0, len = latlngs.length; i < len; i++) {
       if (this._primary) {
-        console.log("primary = ", this._poly._leaflet_id);
         marker = this._createMarker(latlngs[i], i);
         marker.on('click', this._onMarkerClick, this);
         this._markers.push(marker);
@@ -175,6 +174,11 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
   L.Edit.Topology = {
     init: function(map, layer, options) {
       this._map = map;
+      this._map._editStatus = {
+        "layer": null,
+        "editing": false
+      };
+
       var icon = (options && options.icon) ? options.icon : 
           new L.DivIcon({
             iconSize: new L.Point(10, 10),
@@ -200,7 +204,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       this.marker.snapediting.disable();
 
       this._map.on('snap', function(e) {
-        console.log("snapped to ", e.layer_id);
         L.DomUtil.removeClass(e.marker._icon, 'hidden');
         this._map._snapLayer = e.layer_id;
       }.bind(this));
@@ -222,15 +225,25 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
               });
               this._map.fire('marker-created', this.marker);
             } else {
-              this._map.removeLayer(this.marker);
-              this.marker.snapediting.disable();
-              this._findAdjacencies("disable", d.target);
+              if (d.target.editing._primary) {
+                this._map.removeLayer(this.marker);
+                this.marker.snapediting.disable();
+                this._findAdjacencies("disable", d.target);
+              } else {
+                this.disableEditing(this._map._editStatus.layer._leaflet_id, this._map._editStatus.layer.adjacencies);
+                this._findAdjacencies("enable", d.target);
+              }
             }
           } else {
-      // TODO: check if other layers are being edited and disable them first!
-            this._map.addLayer(this.marker);
-            this.marker.snapediting.enable();
-            this._findAdjacencies("enable", d.target);
+            if (this._map._editStatus.editing) {
+              this.disableEditing(this._map._editStatus.layer._leaflet_id, this._map._editStatus.layer.adjacencies);
+              this._findAdjacencies("enable", d.target);
+            } else {
+              this._map.addLayer(this.marker);
+              this.marker.snapediting.enable();
+              this._findAdjacencies("enable", d.target);
+            }
+              
           }
         }.bind(this));
       }.bind(this));
@@ -365,23 +378,32 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
             otherMarker.otherPolyCoordinates.splice(otherMarker.otherVertex2, 0, otherMarker.otherMarkerToInsert);
             toRedraw.push(otherMarker.otherPoly);
 
-          } 
+            // Splice the new latlng into the polygon the new marker snapped to
+            polyCoordinates.splice(vertex2, 0, markerToInsert);
 
-          if (!map._layers[poly].editing._primary) {
+            // Add the snapped polygon to the redraw queue
+            toRedraw.push(poly);
+
+            // Find all overlapping vertexes
+            this.reset();
+
+            // Redraw all affected polygons
+            this.redrawPolys(toRedraw);
+          } else if (!map._layers[poly].editing._primary) {
             return;
+          } else {
+            // Splice the new latlng into the polygon the new marker snapped to
+            polyCoordinates.splice(vertex2, 0, markerToInsert);
+
+            // Add the snapped polygon to the redraw queue
+            toRedraw.push(poly);
+
+            // Find all overlapping vertexes
+            this.reset();
+
+            // Redraw all affected polygons
+            this.redrawPolys(toRedraw);
           }
-
-          // Splice the new latlng into the polygon the new marker snapped to
-          polyCoordinates.splice(vertex2, 0, markerToInsert);
-
-          // Add the snapped polygon to the redraw queue
-          toRedraw.push(poly);
-
-          // Find all overlapping vertexes
-          this.reset();
-
-          // Redraw all affected polygons
-          this.redrawPolys(toRedraw);
 
         } // end if (this._map.snapLayer)
 
@@ -423,20 +445,26 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     },
 
     enableEditing: function(target, layers) {
+      this._map._editStatus = {
+        "layer": map._layers[target],
+        "editing": true
+      };
+
       this._map._layers[target].editing._enabled = true;
       this._map._layers[target].editing._primary = true;
       this._map._layers[target].editing.addHooks();
       this._map._layers[target].setStyle({
-        fillColor: '#000',
+        fillColor: '#eee',
         color: '#666',
         opacity: 0.5
       });
+
       layers.forEach(function(d) {
         this._map._layers[d].editing._enabled = true;
         this._map._layers[d].editing._neighbor = true;
         this._map._layers[d].editing.addHooks();
         this._map._layers[d].setStyle({
-          fillColor: '#fff',
+          fillColor: '#777',
           color: '#666',
           opacity: 0.5
         });
@@ -444,20 +472,26 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     },
 
     disableEditing: function(target, layers) {
+      this._map._editStatus = {
+        "layer": null,
+        "editing": false
+      };
+
       this._map._layers[target].editing._enabled = false;
       this._map._layers[target].editing._primary = false;
       this._map._layers[target].editing.removeHooks();
       this._map._layers[target].setStyle({
-        fillColor: '#777',
+        fillColor: '#000',
         color: '#444',
         opacity: 0.8
       });
+
       layers.forEach(function(d) {
         this._map._layers[d].editing._enabled = false;
         this._map._layers[d].editing._neighbor = false;
         this._map._layers[d].editing.removeHooks();
         this._map._layers[d].setStyle({
-          fillColor: '#777',
+          fillColor: '#000',
           color: '#444',
           opacity: 0.8
         });
