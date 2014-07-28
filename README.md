@@ -1,5 +1,5 @@
 # Leaflet.draw.topology
-Topology editing extension to [Leaflet.draw](https://github.com/Leaflet/Leaflet.draw/)
+Topology editing extension to [Leaflet.draw](https://github.com/Leaflet/Leaflet.draw/). Video demo can be found [on YouTube](https://www.youtube.com/watch?v=rWVRIoIG3gc).
 
 ##Getting started
 The plugin can be initialized as so:
