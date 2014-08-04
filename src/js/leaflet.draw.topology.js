@@ -417,7 +417,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
             this._map._layers[d].adjacencies = [];
           }
         }.bind(this));
-        this.missingVertices();
+        this.missingVertices(callback);
       }.bind(this), 200);
     },
 
@@ -427,16 +427,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         if (e !== target._leaflet_id && layers.indexOf(e.toString()) < 0) {
           layers.push(e.toString());
         }
-        // Recursively disable layers
-        /*this._map._layers[e].adjacencies.forEach(function(j) {
-          if (layers.indexOf(j.toString()) < 0) {
-            layers.push(j.toString());
-          }
-        });*/
       }.bind(this));
-     // if (layers.indexOf(target._leaflet_id.toString()) < 0) {
-      //  layers.push(target._leaflet_id.toString());
-     // }
 
       // Enable or disable
       if (type === "enable") {
@@ -448,7 +439,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
 
     enableEditing: function(target, layers) {
       this._map._editStatus = {
-        "layer": map._layers[target],
+        "layer": this._map._layers[target],
         "editing": true
       };
 
@@ -468,7 +459,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         this._map._layers[d].setStyle({
           fillColor: '#777',
           color: '#666',
-          opacity: 0.5
+          opacity: 0.8
         });
       }.bind(this));
     },
@@ -497,16 +488,19 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       this._layers.setStyle({
         fillColor: '#000',
         color: '#444',
-        opacity: 0.8
+        opacity: 0.95
       });
     },
 
+    /* Largely borrowed from the excellent Turf.js 
+       https://github.com/Turfjs/turf-distance/blob/master/index.js */
     _distance: function(a, b) {
       function toRadians(degree) {
         return degree * Math.PI / 180;
       }
 
-      var dLat = toRadians(b.lat - a.lat),
+      var R = 57.2957795,
+          dLat = toRadians(b.lat - a.lat),
           dLon = toRadians(b.lng - a.lng);
 
       var x = 
@@ -515,13 +509,35 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
 
       var c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 
-      // Return distance in radians
-      return c;
+      // Return distance in degrees
+      return (R * c)/2;
     },
 
     // Is c beween a and b?
     _isBetween: function(a, b, c) {
       var epsilon = this._distance(a, b);
+ /*
+      if (a.lat === b.lat) {
+        if (a.lat === c.lat) {
+          if (Math.abs(a.lng - c.lng) < Math.abs(a.lng - b.lng)) {
+            return true
+          }
+          return true;
+        }
+      }
+
+      var slopeDiff = (c.lng - a.lng) / (c.lat - a.lat) - (b.lng - a.lng) / (b.lat - a.lat);
+      if (Math.abs(slopeDiff ) > epsilon) {
+        return false;
+      }
+
+      if (Math.pow((Math.pow((c.lng - a.lng),2) + Math.pow((c.lat - a.lat),2)),0.5) > Math.pow(( Math.pow((b.lng - a.lng), 2) + Math.pow((b.lat - a.lat), 2)), 0.5)) {
+        return false;
+      }
+      
+      return true
+
+     */
 
       var crossProduct = (c.lat - a.lat) * (b.lng - a.lng) - (c.lng - a.lng) * (b.lat - a.lat);
       if (Math.abs(crossProduct) > epsilon) {
@@ -537,7 +553,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       if (dotProduct > squaredLengthBA) {
         return false;
       }
-
+      
       return true;
     },
 
@@ -551,7 +567,8 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       }.bind(this));
     },
 
-    reset: function() {
+    reset: function(callback) {
+      console.log("start reset");
       Object.keys(this._map._layers).forEach(function(d, i) {
         Object.keys(this._map._layers).forEach(function(x, y) {
           if (this._map._layers[d]._latlngs && this._map._layers[x]._latlngs) {
@@ -590,6 +607,8 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
         }.bind(this));
       }.bind(this));
+      console.log("end reset");
+      callback();
     },
 
     match: function(layers) {
@@ -617,11 +636,11 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                     c._twinLayers.push(d);
                   }
 
-                  if (this._map._layers[d].adjacencies.indexOf(x) < 0) {
-                    this._map._layers[d].adjacencies.push(x);
+                  if (this._map._layers[d].adjacencies.indexOf(x.toString()) < 0) {
+                    this._map._layers[d].adjacencies.push(x.toString());
                   }
-                  if (this._map._layers[x].adjacencies.indexOf(d) < 0) {
-                    this._map._layers[x].adjacencies.push(d);
+                  if (this._map._layers[x].adjacencies.indexOf(d.toString()) < 0) {
+                    this._map._layers[x].adjacencies.push(d.toString());
                   }
                 }
               }
@@ -659,7 +678,8 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       }
     },
 
-    missingVertices: function() {
+    missingVertices: function(callback) {
+      console.log("start missingVertices");
       Object.keys(this._map._layers).forEach(function(d) {
         Object.keys(this._map._layers).forEach(function(x) {
           /* Make sure the layer is indeed a polygon (_latlngs) and that 
@@ -681,7 +701,14 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
         }.bind(this));
       }.bind(this));
-      this.reset();
+      console.log("end missingVertices");
+      this.reset(callback);
+    },
+
+    editLayer: function(layer) {
+      this._map.addLayer(this.marker);
+      this.marker.snapediting.enable();
+      this._findAdjacencies("enable", layer);
     }
 
   }; // End L.Edit.Topology
