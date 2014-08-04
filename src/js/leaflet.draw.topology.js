@@ -172,7 +172,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
   };
 
   L.Edit.Topology = {
-    init: function(map, layer, options) {
+    init: function(map, layer, options, callback) {
       this._map = map;
       this._map._editStatus = {
         "layer": null,
