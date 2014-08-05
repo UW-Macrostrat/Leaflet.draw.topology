@@ -371,7 +371,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
 
           if (otherMarker) {
-            if (!this._map._layers[otherMarker.otherPoly].editing._primary && !this_map._layers[poly].editing._primary) {
+            if (!this._map._layers[otherMarker.otherPoly].editing._primary && !this._map._layers[poly].editing._primary) {
               return;
             }
             markerToInsert._hasTwin = true;
