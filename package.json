@@ -1,6 +1,6 @@
 {
   "name": "leaflet-draw-topology",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Topological editing for Leaflet",
   "main": "dist/leaflet.draw.topology.js",
   "scripts": {

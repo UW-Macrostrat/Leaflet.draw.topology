@@ -51,7 +51,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       } else {
         if (latlngs[i]._twinLayers) {
           for (var j = 0; j < latlngs[i]._twinLayers.length; j++) {
-            if (map._layers[latlngs[i]._twinLayers[j]].editing._primary) {
+            if (this._poly._map._layers[latlngs[i]._twinLayers[j]].editing._primary) {
               marker = this._createMarker(latlngs[i], i);
               marker.on('click', this._onMarkerClick, this);
               this._markers.push(marker);
@@ -371,7 +371,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
 
           if (otherMarker) {
-            if (!map._layers[otherMarker.otherPoly].editing._primary && !map._layers[poly].editing._primary) {
+            if (!this._map._layers[otherMarker.otherPoly].editing._primary && !this_map._layers[poly].editing._primary) {
               return;
             }
             markerToInsert._hasTwin = true;
@@ -516,28 +516,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     // Is c beween a and b?
     _isBetween: function(a, b, c) {
       var epsilon = this._distance(a, b);
- /*
-      if (a.lat === b.lat) {
-        if (a.lat === c.lat) {
-          if (Math.abs(a.lng - c.lng) < Math.abs(a.lng - b.lng)) {
-            return true
-          }
-          return true;
-        }
-      }
-
-      var slopeDiff = (c.lng - a.lng) / (c.lat - a.lat) - (b.lng - a.lng) / (b.lat - a.lat);
-      if (Math.abs(slopeDiff ) > epsilon) {
-        return false;
-      }
-
-      if (Math.pow((Math.pow((c.lng - a.lng),2) + Math.pow((c.lat - a.lat),2)),0.5) > Math.pow(( Math.pow((b.lng - a.lng), 2) + Math.pow((b.lat - a.lat), 2)), 0.5)) {
-        return false;
-      }
-      
-      return true
-
-     */
 
       var crossProduct = (c.lat - a.lat) * (b.lng - a.lng) - (c.lng - a.lng) * (b.lat - a.lat);
       if (Math.abs(crossProduct) > epsilon) {
@@ -568,7 +546,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     },
 
     reset: function(callback) {
-      console.log("start reset");
+      //console.log("start reset");
       Object.keys(this._map._layers).forEach(function(d, i) {
         Object.keys(this._map._layers).forEach(function(x, y) {
           if (this._map._layers[d]._latlngs && this._map._layers[x]._latlngs) {
@@ -607,7 +585,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
         }.bind(this));
       }.bind(this));
-      console.log("end reset");
+     // console.log("end reset");
       callback();
     },
 
@@ -679,7 +657,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     },
 
     missingVertices: function(callback) {
-      console.log("start missingVertices");
+      //console.log("start missingVertices");
       Object.keys(this._map._layers).forEach(function(d) {
         Object.keys(this._map._layers).forEach(function(x) {
           /* Make sure the layer is indeed a polygon (_latlngs) and that 
@@ -701,7 +679,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
         }.bind(this));
       }.bind(this));
-      console.log("end missingVertices");
+     // console.log("end missingVertices");
       this.reset(callback);
     },
 
