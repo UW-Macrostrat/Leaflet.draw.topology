@@ -218,10 +218,13 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       }.bind(this));
 
       Object.keys(layer._layers).forEach(function(j) {
+        /*layer._layers[j].on("contextmenu", function(d) {
+          console.log(d.target._latlngs);
+        });*/
         layer._layers[j].on("click", function(d) {
           // When a polygon is clicked, toggle editing for it and all adjacent polygons
           // If editing is already toggled, disable editing
-         /* if (restricted) {
+          if (restricted) {
             if (d.target.editing._enabled) {  
               if (this._map._snapLayer) {
                 var newMarker = new L.Marker(this.marker.getLatLng(), { 
@@ -231,7 +234,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                 this._map.fire('marker-created', this.marker);
               } 
             }
-          } else {*/
+          } else {
             if (d.target.editing._enabled) { 
               // If editing is enabled and the guide is snapped to this layer, add a new vertex
               if (this._map._snapLayer) {
@@ -265,7 +268,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
               }
                 
             }
-          //}
+          }
   
         }.bind(this));
       }.bind(this));
@@ -311,7 +314,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
               if (polyCoordinates[vertex1]._twinLayers.length > 1 && polyCoordinates[vertex2]._twinLayers.length > 1) {
                 // ...find the intersection of their shared layers...
                 //console.log("1 twin layers - ", polyCoordinates[vertex1]._twinLayers);
-               // console.log("2 twin layers - ", polyCoordinates[vertex2]._twinLayers);
+                //console.log("2 twin layers - ", polyCoordinates[vertex2]._twinLayers);
                 var intersection = polyCoordinates[vertex1]._twinLayers.filter(function(n) {
                   return polyCoordinates[vertex2]._twinLayers.indexOf(n) != -1
                 }.bind(this));
@@ -322,6 +325,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                 } else {
                   var touchingPolys = intersection;
                 }
+
                 // If there are no touching polys...
                 if (touchingPolys.length === 0) {
                   // find union
@@ -335,7 +339,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                     // There is only one polygon at this point
                     return;
                   }
-                  
                 } else {
                   var otherPoly = touchingPolys[0];
                 }
@@ -413,6 +416,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           } else if (!map._layers[poly].editing._primary) {
             return;
           } else {
+            // No other layer to add a vertex to
             // Splice the new latlng into the polygon the new marker snapped to
             polyCoordinates.splice(vertex2, 0, markerToInsert);
 
@@ -484,6 +488,16 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         }
           
       }.bind(this));
+    },
+
+    destroy: function() {
+      delete this.marker;
+      this._map.off('mousemove');
+
+      this._map.off('snap');
+
+      this._map.off('unsnap');
+      this._map.off('marker-created');
     },
 
     disableEditing: function(target, layers) {
