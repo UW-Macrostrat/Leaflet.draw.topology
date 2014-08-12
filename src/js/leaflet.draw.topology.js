@@ -92,7 +92,9 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     if (latlng._isMiddle) {
       marker._isMiddle = true;
     }
-
+    /*marker.on('mouseover', function(d) {
+      console.log("layer ", d.target._layer, " -- ", d.target._index);
+    });*/
     marker.on('drag', this._onMarkerDrag, this);
     marker.on('dragend', this._fireEdit, this);
 
@@ -172,7 +174,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
   };
 
   L.Edit.Topology = {
-    init: function(map, layer, options, callback) {
+    init: function(map, layer, options, restricted, callback) {
       this._map = map;
       this._map._editStatus = {
         "layer": null,
@@ -219,34 +221,52 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         layer._layers[j].on("click", function(d) {
           // When a polygon is clicked, toggle editing for it and all adjacent polygons
           // If editing is already toggled, disable editing
-          if (d.target.editing._enabled) {
-            if (this._map._snapLayer) {
-              var newMarker = new L.Marker(this.marker.getLatLng(), { 
-                icon: L.Edit.Poly.prototype.options.icon, 
-                draggable: true
-              });
-              this._map.fire('marker-created', this.marker);
-            } else {
-              if (d.target.editing._primary) {
-                this._map.removeLayer(this.marker);
-                this.marker.snapediting.disable();
-                this._findAdjacencies("disable", d.target);
+         /* if (restricted) {
+            if (d.target.editing._enabled) {  
+              if (this._map._snapLayer) {
+                var newMarker = new L.Marker(this.marker.getLatLng(), { 
+                  icon: L.Edit.Poly.prototype.options.icon, 
+                  draggable: true
+                });
+                this._map.fire('marker-created', this.marker);
+              } 
+            }
+          } else {*/
+            if (d.target.editing._enabled) { 
+              // If editing is enabled and the guide is snapped to this layer, add a new vertex
+              if (this._map._snapLayer) {
+                var newMarker = new L.Marker(this.marker.getLatLng(), { 
+                  icon: L.Edit.Poly.prototype.options.icon, 
+                  draggable: true
+                });
+                this._map.fire('marker-created', this.marker);
+              // If the guide is not snapped to this layer...
               } else {
+                // ...and the layer being edited was clicked
+                if (d.target.editing._primary) {
+                  this._map.removeLayer(this.marker);
+                  this.marker.snapediting.disable();
+                  this._findAdjacencies("disable", d.target);
+                //
+                } else {
+                  this.disableEditing(this._map._editStatus.layer._leaflet_id, this._map._editStatus.layer.adjacencies);
+                  this._findAdjacencies("enable", d.target);
+                }
+              }
+            // If editing is not enabled on this layer...
+            } else {
+              if (this._map._editStatus.editing) {
                 this.disableEditing(this._map._editStatus.layer._leaflet_id, this._map._editStatus.layer.adjacencies);
                 this._findAdjacencies("enable", d.target);
+              } else {
+                this._map.addLayer(this.marker);
+                this.marker.snapediting.enable();
+                this._findAdjacencies("enable", d.target);
               }
+                
             }
-          } else {
-            if (this._map._editStatus.editing) {
-              this.disableEditing(this._map._editStatus.layer._leaflet_id, this._map._editStatus.layer.adjacencies);
-              this._findAdjacencies("enable", d.target);
-            } else {
-              this._map.addLayer(this.marker);
-              this.marker.snapediting.enable();
-              this._findAdjacencies("enable", d.target);
-            }
-              
-          }
+          //}
+  
         }.bind(this));
       }.bind(this));
 
@@ -257,7 +277,7 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         if (this._map._snapLayer) {
           var poly = this._map._snapLayer,
               toRedraw = [];
-
+          //console.log("snapped to ", poly);
           var markerToInsert = {
             "lat": vertex._latlng.lat,
             "lng": vertex._latlng.lng
@@ -284,25 +304,24 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
 
           /* If both vertices either side of the new vertex have a twin or twins, 
-             we need to insert a vertex on that layers */
+             we need to insert a vertex on that layer */
           if (polyCoordinates[vertex1]._hasTwin && polyCoordinates[vertex2]._hasTwin) {
             var otherMarker = (function() {
               // Check if each has more than one twin layer
               if (polyCoordinates[vertex1]._twinLayers.length > 1 && polyCoordinates[vertex2]._twinLayers.length > 1) {
                 // ...find the intersection of their shared layers...
+                //console.log("1 twin layers - ", polyCoordinates[vertex1]._twinLayers);
+               // console.log("2 twin layers - ", polyCoordinates[vertex2]._twinLayers);
                 var intersection = polyCoordinates[vertex1]._twinLayers.filter(function(n) {
                   return polyCoordinates[vertex2]._twinLayers.indexOf(n) != -1
                 }.bind(this));
-
-                // If there are multiple intersection layers, remove duplicates
+                // If there are multiple intersection layers, remove layer snapped to
                 if (intersection.length > 1) {
-                  var touchingPolys = intersection.filter(function(n) {
-                    return polyCoordinates[vertex1]._twinLayers.indexOf(n) === -1;
-                  });
+                  intersection.splice(intersection.indexOf(poly.toString()), 1);
+                  var touchingPolys = intersection;
                 } else {
                   var touchingPolys = intersection;
                 }
-
                 // If there are no touching polys...
                 if (touchingPolys.length === 0) {
                   // find union
@@ -453,14 +472,17 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
       });
 
       layers.forEach(function(d) {
-        this._map._layers[d].editing._enabled = true;
-        this._map._layers[d].editing._neighbor = true;
-        this._map._layers[d].editing.addHooks();
-        this._map._layers[d].setStyle({
-          fillColor: '#777',
-          color: '#666',
-          opacity: 0.8
-        });
+        if (d !== target.toString()) {
+          this._map._layers[d].editing._enabled = true;
+          this._map._layers[d].editing._neighbor = true;
+          this._map._layers[d].editing.addHooks();
+          this._map._layers[d].setStyle({
+            fillColor: '#777',
+            color: '#666',
+            opacity: 0.8
+          });
+        }
+          
       }.bind(this));
     },
 
@@ -499,7 +521,8 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
         return degree * Math.PI / 180;
       }
 
-      var R = 57.2957795,
+      //var R = 57.2957795,
+      var R = 1,
           dLat = toRadians(b.lat - a.lat),
           dLon = toRadians(b.lng - a.lng);
 
@@ -546,7 +569,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     },
 
     reset: function(callback) {
-      //console.log("start reset");
       Object.keys(this._map._layers).forEach(function(d, i) {
         Object.keys(this._map._layers).forEach(function(x, y) {
           if (this._map._layers[d]._latlngs && this._map._layers[x]._latlngs) {
@@ -572,11 +594,11 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
                       c._twinLayers.push(d);
                     }
 
-                    if (this._map._layers[d].adjacencies.indexOf(x) < 0) {
-                      this._map._layers[d].adjacencies.push(x);
+                    if (this._map._layers[d].adjacencies.indexOf(x.toString()) < 0) {
+                      this._map._layers[d].adjacencies.push(x.toString());
                     }
-                    if (this._map._layers[x].adjacencies.indexOf(d) < 0) {
-                      this._map._layers[x].adjacencies.push(d);
+                    if (this._map._layers[x].adjacencies.indexOf(d.toString()) < 0) {
+                      this._map._layers[x].adjacencies.push(d.toString());
                     }
                   }
                 }
@@ -585,11 +607,15 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
         }.bind(this));
       }.bind(this));
-     // console.log("end reset");
-      callback();
+      if (callback) {
+        callback();
+      }
     },
 
     match: function(layers) {
+      for (var i = 0; i < layers.length; i++) {
+        layers[i] = layers[i].toString();
+      }
       layers.forEach(function(d, i) {
         layers.forEach(function(x, y) {
           this._map._layers[d]._latlngs.forEach(function(a, b) {
@@ -657,7 +683,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
     },
 
     missingVertices: function(callback) {
-      //console.log("start missingVertices");
       Object.keys(this._map._layers).forEach(function(d) {
         Object.keys(this._map._layers).forEach(function(x) {
           /* Make sure the layer is indeed a polygon (_latlngs) and that 
@@ -679,7 +704,6 @@ if (L.Edit.Poly && L.Handler.MarkerSnap) {
           }
         }.bind(this));
       }.bind(this));
-     // console.log("end missingVertices");
       this.reset(callback);
     },
 
